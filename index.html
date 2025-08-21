@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baúl de Cartas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f8f5f0;
+            font-family: 'Courier New', monospace;
+            color: #000;
+            height: 100vh;
+            background-image: url('https://www.transparenttextures.com/patterns/old-map.png');
+            background-attachment: fixed;
+            line-height: 1.6;
+        }
+
+        button {
+            position: fixed;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5em;
+            cursor: pointer;
+            border: 2px solid #999;
+            background: #fff;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: scale(1.1);
+        }
+
+        #saveBtn { top: 20px; right: 20px; }
+        #sendBtn { bottom: 20px; right: 20px; background: #007acc; color: white; }
+        #clearBtn { bottom: 20px; left: 20px; }
+        #colorBtn { bottom: 20px; left: 90px; }
+        #inboxBtn { top: 20px; left: 20px; background: #e91e63; color: white; border-color: #c2185b; }
+
+        header {
+            text-align: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        header h1 {
+            font-size: 1.8em;
+        }
+
+        .typewriter-intro {
+            font-size: 1.2em;
+            color: #555;
+            margin: 10px auto;
+            white-space: nowrap;
+            overflow: hidden;
+            border-right: 2px solid #000;
+            width: 0;
+            animation: typing 3.5s steps(60) 1s 1 normal both,
+                       blinkCursor 0.8s step-end infinite;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        @keyframes blinkCursor {
+            from, to { border-color: #000; }
+            50% { border-color: transparent; }
+        }
+
+        #paper {
+            margin: 50px auto;
+            width: 700px;
+            max-width: 90%;
+            min-height: 60vh;
+            padding: 40px 60px;
+            background: #fdfbf7;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            overflow: auto;
+            line-height: 1.8em;
+        }
+
+        #text {
+            font-size: 1.6em;
+            text-align: left;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            outline: none;
+            width: 36ch;
+        }
+
+        #text::after {
+            content: "|";
+            animation: blink 0.7s step-end infinite;
+            margin-left: 3px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        #inbox {
+            width: 90%;
+            max-width: 900px;
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: none;
+        }
+
+        #letters {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .letter {
+            background: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-left: 4px solid #000;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            line-height: 1.8em;
+            font-size: 1.4em;
+            color: #000;
+        }
+
+        #backBtn {
+            margin: 20px auto;
+            display: block;
+            width: 200px;
+            background: #000;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- Botones -->
+    <button id="saveBtn" title="Guardar carta">💾</button>
+    <button id="sendBtn" title="Enviar carta">📤</button>
+    <button id="clearBtn" title="Limpiar">🗑️</button>
+    <button id="colorBtn" title="Cambiar tinta">🖊️</button>
+    <button id="inboxBtn" title="Bandeja de entrada">📬</button>
+
+    <!-- Header -->
+    <header>
+        <h1>📬 Baúl de Cartas</h1>
+        <p class="typewriter-intro">Escribí una carta. Guardala que yo la leere. MyO</p>
+    </header>
+
+    <!-- Papel -->
+    <div id="paper">
+        <p id="text" contenteditable="true"></p>
+    </div>
+
+    <!-- Bandeja -->
+    <div id="inbox" style="display: none;">
+        <h2>Tus Cartas</h2>
+        <div id="letters"></div>
+        <button id="backBtn">← Volver a escribir</button>
+    </div>
+
+    <!-- Firebase: modo compatibilidad -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script>
+        // Configuración de Firebase (copiada de tu consola)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwu3GxgEa_af28rS50Bi-fBJ6v6Sph9Hk",
+            authDomain: "baul-de-cartas.firebaseapp.com",
+            projectId: "baul-de-cartas",
+            storageBucket: "baul-de-cartas.firebasestorage.app",
+            messagingSenderId: "516788730901",
+            appId: "1:516788730901:web:54ff3cc4b5fd59159d621c"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Elementos
+        const textEl = document.getElementById("text");
+        const saveBtn = document.getElementById("saveBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const colorBtn = document.getElementById("colorBtn");
+        const sendBtn = document.getElementById("sendBtn");
+        const inboxBtn = document.getElementById("inboxBtn");
+        const inbox = document.getElementById("inbox");
+        const letters = document.getElementById("letters");
+        const backBtn = document.getElementById("backBtn");
+
+        // Usuario: O o M
+        const user = prompt("¿Eres 'O' o 'M'? (escribe O o M)").toUpperCase() === "M" ? "M" : "O";
+
+        // Color actual
+        let currentColor = "black";
+        const emojis = { black: "⚫", red: "🔴", blue: "🔵", green: "🟢" };
+        colorBtn.textContent = emojis[currentColor];
+
+        colorBtn.addEventListener("click", () => {
+            const colors = ["black", "red", "blue", "green"];
+            currentColor = colors[(colors.indexOf(currentColor) + 1) % colors.length];
+            colorBtn.textContent = emojis[currentColor];
+        });
+
+        // Cargar borrador
+        window.onload = () => {
+            const saved = localStorage.getItem(`draft_${user}`);
+            if (saved) textEl.innerHTML = saved;
+            loadInbox();
+        };
+
+        // Guardar
+        function saveDraft() {
+            localStorage.setItem(`draft_${user}`, textEl.innerHTML);
+        }
+
+        // Sonido de tecla (máquina realista)
+        function playTypeSound() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "square";
+            osc.frequency.setValueAtTime(750, ctx.currentTime);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.08);
+        }
+
+        // Campana (como máquina real)
+        function playBellSound() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(800, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.5);
+        }
+
+        // Detectar teclas
+        textEl.addEventListener("keydown", function (e) {
+            const lines = textEl.innerText.split("\n");
+            const currentLine = lines[lines.length - 1];
+
+            // Campana a 40 caracteres
+            if (currentLine.length >= 40 && e.key !== "Backspace" && e.key !== "Enter") {
+                playBellSound();
+                e.preventDefault();
+                return;
+            }
+
+            if (e.key === "Enter") {
+                e.preventDefault();
+                document.execCommand("insertHTML", false, "<br>");
+                playTypeSound();
+            } else if (e.key === "Backspace") {
+                if (textEl.innerText.length === 0) e.preventDefault();
+            } else {
+                setTimeout(() => {
+                    document.execCommand("styleWithCSS", false, true);
+                    document.execCommand("foreColor", false, currentColor);
+                    playTypeSound();
+                }, 10);
+            }
+            saveDraft();
+        });
+
+        // Guardar
+        saveBtn.addEventListener("click", () => {
+            saveDraft();
+            alert("✅ Guardado correctamente");
+        });
+
+        // Enviar
+        sendBtn.addEventListener("click", () => {
+            const content = textEl.innerHTML.trim();
+            if (!content) {
+                alert("✏️ Escribe algo antes de enviar");
+                return;
+            }
+            const to = user === "O" ? "M" : "O";
+            db.ref("messages").push().set({
+                from: user,
+                to: to,
+                content: content,
+                timestamp: Date.now()
+            }).then(() => {
+                alert("💌 ¡Carta enviada!");
+                textEl.innerHTML = "";
+                localStorage.removeItem(`draft_${user}`);
+            });
+        });
+
+        // Cargar bandeja
+        function loadInbox() {
+            letters.innerHTML = "Cargando...";
+            db.ref("messages").orderByChild("to").equalTo(user).on("value", (snapshot) => {
+                letters.innerHTML = "";
+                const data = snapshot.val();
+                if (!data) {
+                    letters.innerHTML = "<p>No tenés cartas aún.</p>";
+                    return;
+                }
+                Object.values(data).reverse().forEach(msg => {
+                    const letter = document.createElement("div");
+                    letter.className = "letter";
+                    letter.innerHTML = msg.content;
+                    letters.appendChild(letter);
+                });
+            });
+        }
+
+        // Mostrar bandeja
+        inboxBtn.addEventListener("click", () => {
+            document.querySelector("#paper").style.display = "none";
+            inbox.style.display = "block";
+        });
+
+        // Volver
+        backBtn.addEventListener("click", () => {
+            inbox.style.display = "none";
+            document.querySelector("#paper").style.display = "flex";
+        });
+
+        // Limpiar
+        clearBtn.addEventListener("click", () => {
+            if (confirm("¿Limpiar todo?")) textEl.innerHTML = "";
+        });
+    </script>
+</body>
+</html>
